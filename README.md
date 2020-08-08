@@ -64,6 +64,11 @@ The scripts associated with this image assume a standard directory structure for
 /mosquitto/log/
 /letsencrypt/
 ```
+To avoid write errors you should transfer ownership to userid and groupid mosquitto (100:101).
+
+```
+chown -R 100:101 ./mosquitto
+```
 
 The docker-compose.yml file shown above maps local (persistent) directories to the relevant container volumes:
 
@@ -83,7 +88,7 @@ The sample docker-compose.yml file shows a local directory ./scripts mapped to t
 
 ## Certbot/LetsEncrypt Integration
 
-At container startup, scripts will look to see if certificates for DOMAIN exist in /letsencrypt.  If it doesn't find any certificates, it will attempt to obtain them (via certbot certonly --standalone --agree-tos --standalone-supported-challenges http-01 -n -d $DOMAIN -m $EMAIL).
+At container startup, scripts will look to see if certificates for DOMAIN exist in /letsencrypt.  If it doesn't find any certificates, it will attempt to obtain them (via certbot certonly --standalone --agree-tos --preferred-challenges http-01 -n -d $DOMAIN -m $EMAIL).
 If certificates do exist, then an attempt will be made to renew them (via certbot renew).
 Once a week, scripts will be run to check to see if the certificates need renewal.  If so, they will be renewed, then the mosquitto server will be restarted so that it picks up the new certificates.  Unfortunately, this does mean that there will be a brief (few second) outage each time certificates are in fact renewed.  Adjust use cases for this server accordingly.
 
