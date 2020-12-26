@@ -1,5 +1,6 @@
 #!/bin/bash
-
+# Start crond for cronjobs to work correctly
+/usr/sbin/crond
 # Check and if needed install/renew certs
 # 	Note that this script (certbot.sh) is also
 # 	run weekely from /etc/periodic/weekly/croncert.sh
