@@ -15,6 +15,7 @@ RUN \
 		bash \
 		coreutils \
 		nano \
+		curl \
         py3-crypto \
 		ca-certificates \
         certbot \
