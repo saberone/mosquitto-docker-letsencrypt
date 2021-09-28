@@ -34,10 +34,10 @@ RUN \
 COPY etc /etc
 COPY certbot.sh /certbot.sh
 COPY restart.sh /restart.sh
-COPY croncert.sh /etc/periodic/weekly/croncert.sh
+COPY croncert /etc/periodic/weekly/croncert
 RUN \
 	chmod +x /certbot.sh && \
 	chmod +x /restart.sh && \
-	chmod +x /etc/periodic/weekly/croncert.sh
+	chmod +x /etc/periodic/weekly/croncert
 
 ENTRYPOINT ["/init"]
