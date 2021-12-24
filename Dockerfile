@@ -1,4 +1,4 @@
-FROM python:3-alpine
+FROM python:3-alpine3.14
 LABEL maintainer synoniem https://github.com/synoniem
 
 # Set environment variables.
