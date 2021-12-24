@@ -2,7 +2,7 @@
 if [ -f "/mosquitto/conf/mosquitto.conf" ]
 then
 echo "Keep existing mosquitto.conf"
-	if [ -z "`grep -P "$^port " /mosquitto/conf/mosquitto.conf`" ]
+	if [ -z "`grep -F "$^port " /mosquitto/conf/mosquitto.conf`" ]
 	then
 	echo "Replace deprecated keyword 'port' with 'listener' in mosquitto.conf"
 	sed -i "s/^port /listener /g" /mosquitto/conf/mosquitto.conf
