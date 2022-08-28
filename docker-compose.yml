@@ -20,5 +20,4 @@ services:
     restart: always
 networks:
   backend-net:
-    external:
-      name: backend-net
+    external: false

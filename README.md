@@ -1,5 +1,7 @@
 # alpine-mosquitto-certbot
 
+<span style="color:red">Warning!</span> This build uses Alpine 3.13 which requires you to update libseccomp on your dockerhost to 2.4.2 or newer and Docker to 19.03.9 or newer.
+
 An automated build that integrates the [Mosquitto MQTT server](https://mosquitto.org/) with [Certbot](https://certbot.eff.org/) on top of [Alpine linux](https://www.alpinelinux.org/).
 This repo is a reworked version from saberone/mosquitto-docker-letsencrypt. It is now using a [Just Containers s6-overlay](https://github.com/just-containers/s6-overlay) as a init system.
 
