@@ -1,4 +1,6 @@
 # alpine-mosquitto-certbot
+2022-11-19 For a even more easy way to run a Mosquitto MQTT server take a look at my docker-compose script at [mosquitto-traefik-letsencrypt](https://github.com/synoniem/mosquitto-traefik-letsencrypt.git) with Traefik and Let's Encrypt.
+
 
 <span style="color:red">Warning!</span> This build uses Alpine 3.13 which requires you to update libseccomp on your dockerhost to 2.4.2 or newer and Docker to 19.03.9 or newer.
 
