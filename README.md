@@ -1,6 +1,11 @@
 # alpine-mosquitto-certbot
+2022-11-19 For a even more easy way to run a Mosquitto MQTT server take a look at my docker-compose script at [mosquitto-traefik-letsencrypt](https://github.com/synoniem/mosquitto-traefik-letsencrypt.git) with Traefik and Let's Encrypt.
+
+
+<span style="color:red">Warning!</span> This build uses Alpine 3.13 which requires you to update libseccomp on your dockerhost to 2.4.2 or newer and Docker to 19.03.9 or newer.
 
 An automated build that integrates the [Mosquitto MQTT server](https://mosquitto.org/) with [Certbot](https://certbot.eff.org/) on top of [Alpine linux](https://www.alpinelinux.org/).
+This repo is a reworked version from saberone/mosquitto-docker-letsencrypt. It is now using a [Just Containers s6-overlay](https://github.com/just-containers/s6-overlay) as a init system.
 
 As the Internet of Things (IoT) world rapidly grows and evolves, developers need a simple and secure way to implement peer-to-peer and peer-to-server (backend) communications.  MQTT is a relatively simple message/queue-based protocol that provides exactly that. 
 Unfortunately, there are a ton of Docker images available for brokers, e.g. eclipse-mosquitto; but, nearly all of them leave it up to the user to figure out how to secure the platform.  This results in many developers simply ignoring security altogether for the sake of simplicity.  Even more dangerous, many semi-technical home owners are now dabbling in the home automation space and due to the complexity of securing system, they are hanging IoT/automation devices on the internet completely unsecurred.
@@ -9,15 +14,21 @@ This docker image attempts to make it easier to implement a secure MQTT broker, 
 
 For those interested in some of the nuts and bolts related to the integration, reference [Brian Boucheron's](https://www.digitalocean.com/community/users/bboucheron) excellent article [How to Install and Secure the Mosquitto MQTT Messaging Broker on Ubuntu 16.04](https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-the-mosquitto-mqtt-messaging-broker-on-ubuntu-16-04) which servered as a reference in creating this image.
 
-## Standing up a server
+## Setting up a MQTT server
 
-A straigtforward way of standing up a server is to use [docker-compose](https://docs.docker.com/compose/).  Here is a sample [docker-compose.yml](https://docs.docker.com/compose/compose-file/) file:
+A straigtforward way of setting up a server is to use [docker-compose](https://docs.docker.com/compose/). Shown in the yml file is a backend-net network, which you may or may not want to implement in your particular Docker environment. The network can be created with the following command.
+
+```
+docker network create backend-net
+```
+
+Here is a sample [docker-compose.yml](https://docs.docker.com/compose/compose-file/) file:
 
 ```
 version: '2'
 services:
   mqtt:
-    image: bitrox/alpine-mosquitto-certbot
+    image: synoniem/alpine-mosquitto-certbot
     networks:
       - backend-net
     ports:
@@ -26,13 +37,12 @@ services:
       - 8883:8883
       - 80:80
     environment:
-      - DOMAIN=mqtt.myserver.com
-      - EMAIL=myemail@myprovider.com
+      - DOMAIN=mqtt.example.org
+      - EMAIL=info@example.org
     volumes:
       - ./mosquitto/conf/:/mosquitto/conf
       - ./mosquitto/log/:/mosquitto/log
       - ./letsencrypt:/etc/letsencrypt
-      - ./scripts:/scripts
     container_name: mqtt
     restart: always
 networks:
@@ -41,13 +51,13 @@ networks:
       name: backend-net
 ```
 
-In this case, four ports are exposed, which we'll go over in more detail when describing how this configuration matches that of the mosquitto.conf file.  The first three ports are associated with Mosquitto, the forth port mapping (80:80) allows Certbot/LetsEncrypt to verify the DOMAIN.  Also shown in the yml file is a backend-net network, which you many or may not have implemented with your particular Docker environment (Docker networking is WAY beyond the scope of this discussion).
+In this case, four ports are exposed, which we'll go over in more detail when describing how this configuration matches that of the mosquitto.conf file.  The first three ports are associated with Mosquitto, the forth port mapping (80:80) allows Certbot/LetsEncrypt to verify the DOMAIN.  
 
 ## Environment Variables
 
-There are three environment variables useable with this image.  DOMAIN and EMAIL are required for Certbot/[Letencrypt](https://letsencrypt.org/) to obtain certificates necessary for secure communications.  The third, TESTCERT, is optional.
+There are three environment variables useable with this image.  DOMAIN and EMAIL are required for Certbot/[Letsencrypt](https://letsencrypt.org/) to obtain certificates necessary for secure communications.  The third, TESTCERT, is optional.
 
-**DOMAIN** - This should be defined as your fully qualified domain name, i.e. mqtt.myserver.com.  The domain needs to point to your server as LetsEncrypt will verify such when obtaining certificates.
+**DOMAIN** - This should be defined as your fully qualified domain name, i.e. mqtt.myserver.com.  The domain needs to point to your server as LetsEncrypt will verify such when obtaining certificates. The domain name will automatically be inserted in the mosquitto.conf file to point to the certificate files Certbot retrieved.
 
 **EMAIL** - This simply needs to be an email address. It's required by certbot/LetsEncrypt to obtain certificates.
 
@@ -64,12 +74,17 @@ The scripts associated with this image assume a standard directory structure for
 /mosquitto/log/
 /letsencrypt/
 ```
+To avoid write errors you should transfer ownership to userid and groupid mosquitto (100:101).
+
+```
+chown -R 100:101 ./mosquitto
+```
 
 The docker-compose.yml file shown above maps local (persistent) directories to the relevant container volumes:
 
 **/mosquitto/conf/** - this directory is where Mosquitto will look for the mosquitto.conf file.
 
-**/mosquitto/conf/mosquitto.conf** - this file is user supplied.  The startup scripts will look for exactly this file in exactly this directory. If it isn't found, the container will exit with appropriate error messages.
+**/mosquitto/conf/mosquitto.conf** - this file is user supplied.  The startup scripts will look for exactly this file in exactly this directory. If it isn't found, it will be copied from the at buildtime edited /etc/mosquitto/mosquitto.conf.
 
 **/mosquitto/conf/passwd** - this file is the standard location for Mosquitto users/passwords.  An alternate file/location can be specified in mosquitto.conf, but it must be in a location persisted through docker volume mapping.  It's presence/use is optional, but allowing anonymous access to MQTT somewhat defeats the purpose of this image.
 
@@ -77,13 +92,10 @@ The docker-compose.yml file shown above maps local (persistent) directories to t
 
 **/letsencrypt** - This directory is where certbot/LetsEncrypt will place retrieved certificates.  The certbot scripts specifically require/expect this directory to exist in the container, so it should be mapped.
 
-**/scripts** - To enable customization of the container, the run.sh script looks for this directory.  If it finds /scripts, it will look inside the directory for any file ending in .sh, e.g. myscript.sh.  It will then attempt to execuite said script(s) during container startup, immediately after dealing with certbot/LetsEncrypt, but before starting Mosquitto.  Scripts found will be executed in alpha order.  A suggested naming convention for scripts include a number followed by a dash, then the script name, ending in .sh, e.g. 00-myfirstscript.sh, 01-mysecondscript.sh, etc.  This will ensure your scripts are executed in the order intended.  An example of this functionality would be if you want additional software/utilities in the container.
-
-The sample docker-compose.yml file shows a local directory ./scripts mapped to the container volume /scripts where run.sh will look for the above discussed user scripts to run at startup.
 
 ## Certbot/LetsEncrypt Integration
 
-At container startup, scripts will look to see if certificates for DOMAIN exist in /letsencrypt.  If it doesn't find any certificates, it will attempt to obtain them (via certbot certonly --standalone --agree-tos --standalone-supported-challenges http-01 -n -d $DOMAIN -m $EMAIL).
+At container startup, scripts will look to see if certificates for DOMAIN exist in /letsencrypt.  If it doesn't find any certificates, it will attempt to obtain them (via certbot certonly --standalone --agree-tos --preferred-challenges http-01 -n -d $DOMAIN -m $EMAIL).
 If certificates do exist, then an attempt will be made to renew them (via certbot renew).
 Once a week, scripts will be run to check to see if the certificates need renewal.  If so, they will be renewed, then the mosquitto server will be restarted so that it picks up the new certificates.  Unfortunately, this does mean that there will be a brief (few second) outage each time certificates are in fact renewed.  Adjust use cases for this server accordingly.
 
@@ -119,7 +131,7 @@ user mosquitto
 # Default listener
 # =================================================================
 
-port 1883
+listener 1883
 protocol mqtt
 
 # =================================================================
@@ -128,22 +140,22 @@ protocol mqtt
 
 listener 8083
 protocol websockets 
-cafile /etc/letsencrypt/live/mqtt.bitrox.io/chain.pem
-certfile /etc/letsencrypt/live/mqtt.bitrox.io/fullchain.pem
-keyfile /etc/letsencrypt/live/mqtt.bitrox.io/privkey.pem
+cafile /etc/letsencrypt/live/mqtt.example.org/chain.pem
+certfile /etc/letsencrypt/live/mqtt.example.org/fullchain.pem
+keyfile /etc/letsencrypt/live/mqtt.example.org/privkey.pem
 
 listener 8883
 protocol mqtt
-cafile /etc/letsencrypt/live/mqtt.bitrox.io/chain.pem
-certfile /etc/letsencrypt/live/mqtt.bitrox.io/fullchain.pem
-keyfile /etc/letsencrypt/live/mqtt.bitrox.io/privkey.pem
+cafile /etc/letsencrypt/live/mqtt.example.org/chain.pem
+certfile /etc/letsencrypt/live/mqtt.example.org/fullchain.pem
+keyfile /etc/letsencrypt/live/mqtt.example.org/privkey.pem
 
 # =================================================================
 # Logging
 # =================================================================
 
 log_dest file /mosquitto/log/mosquitto.log
-log_type all
+log_type warning
 websockets_log_level 255
 connection_messages true
 log_timestamp true
@@ -161,15 +173,21 @@ allow_anonymous false
 # Control access to the broker using a password file. This file can be
 # generated using the mosquitto_passwd utility. 
 password_file /mosquitto/conf/passwd
+```
 
 ## Generating User ID/Password
 
-Mosquitto provides a utility (mosquitto_passwd) for adding users to a password file with encrypted passwords.  Assuming the passwd file is in the standard location as shown in the mosquitto.conf file above, you can add a user/password combination (e.g. booboy myPwd123) to the file once the docker container is up and running, using the following command:
+Mosquitto provides a utility (mosquitto_passwd) for adding users to a password file with encrypted passwords.  Assuming the passwd file is in the standard location as shown in the mosquitto.conf file above, you can add a user/password combination (e.g. firstuser firstPwd) to the file once the docker container is up and running, using the following command:
 
-docker exec -it mqtt mosquitto_passwd -b /mosquitto/conf/passwd booboy myPwd123
+```
+docker exec -it mqtt mosquitto_passwd -b /mosquitto/conf/passwd firstuser firstPwd
+```
 
-This command doesn't provide any feedback if successful, but does show errors if there are problems.  You can verify success simply looking in the passwd file.  You should see an entry similar to: booboy:$6$+NKkI0p3oZmSukn9$mOUEEHUizK2zqc8Hk2l0JlHHXTW8GPzSonP9Ujrjhs1tVNQqN3lGCAFcFKnpJefOjUPwjqE5mZ
-qSjBl6BCKnPA==
+This command doesn't provide any feedback if successful, but does show errors if there are problems.  You can verify success simply looking in the passwd file.  You should see an entry similar to: firstuser:$6$+NKkI0p3oZmSukn9$mOUEEHUizK2zqc8Hk2l0JlHHXTW8GPzSonP9Ujrjhs1tVNQqN3lGCAFcFKnpJefOjUPwjqE5mZqSjBl6BCKnPA==
+
+After adding users you should reload the mosquitto server with the following command:
+```
+docker exec -it mqtt /restart.sh
 ```
 
 ## Testing Your Server
@@ -184,7 +202,7 @@ For the MQTT subscriber:
 
 ```
 docker exec -it mqtt /bin/bash
-mosquitto_sub -h <yourserveraddr> -u "booboy" -P "myPwd123" -t "testQueue"
+mosquitto_sub -h <yourserveraddr> -u "firstuser" -P "firstPwd" -t "testQueue"
 ```
 
 The mosquitto_sub command will block waiting for messages from ++testQueue++.
@@ -193,12 +211,12 @@ To publish a message to ++testQueue++, open another terminal and use the followi
 
 ```
 docker exec -it mqtt /bin/bash
-mosquitto_pub -h <yourserveraddr> -u "booboy" -P "myPwd123" -t "testQueue" -m "Hello subscribers to testQueue!"
+mosquitto_pub -h <yourserveraddr> -u "firstuser" -P "firstPwd" -t "testQueue" -m "Hello subscribers to testQueue!"
 ```
 
 In the first (subscriber) terminal window, you should immediately see the message "Hello subscribers to testQueue!".
 
-To test remotely, [mqtt-admin](https://hobbyquaker.github.io/mqtt-admin/) by [Sebastian Raff](https://hobbyquaker.github.io) is an excellent resource.  Note that you need to make sure any filewalls/routers between your container and the internet are properly configured to route requests on the ports specified before attempting to use mqtt-admin.
+To test remotely, [mqtt-explorer](http://mqtt-explorer.com/) by Thomas Nordquist is an excellent resource.  Note that you need to make sure any filewalls/routers between your container and the internet are properly configured to route requests on the ports specified before attempting to use mqtt-explorer.
 
 
 

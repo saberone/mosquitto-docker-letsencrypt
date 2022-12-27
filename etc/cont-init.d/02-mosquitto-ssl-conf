@@ -1,0 +1,21 @@
+#!/usr/bin/with-contenv bash
+if [ -f "/mosquitto/conf/mosquitto.conf" ]
+then
+echo "Keep existing mosquitto.conf"
+	if [ -n "`grep -F "$^port " /mosquitto/conf/mosquitto.conf`" ]
+	then
+	echo "Replace deprecated keyword 'port' with 'listener' in mosquitto.conf"
+	sed -i "s/^port /listener /g" /mosquitto/conf/mosquitto.conf
+	fi
+else
+echo "Copying adapted mosquitto.conf"
+cp /etc/mosquitto/mosquitto.conf /mosquitto/conf/mosquitto.conf
+fi
+if [ -z "`fgrep mqtt.example.org /mosquitto/conf/mosquitto.conf`" ]
+then 
+echo "Domain in mosquitto.conf already has been adapted"
+else
+sed -i "s/mqtt.example.org/$DOMAIN/g" /mosquitto/conf/mosquitto.conf
+echo "mosquitto.conf adapted to $DOMAIN"
+fi
+

@@ -42,7 +42,7 @@ else
                                         --test-cert \
                                         --standalone \
                                         --agree-tos \
-                                        --standalone-supported-challenges http-01 \
+                                        --preferred-challenges http-01 \
                                         -n \
                                         -d $DOMAIN \
                                         -m $EMAIL
@@ -51,7 +51,7 @@ else
                                 certbot certonly \
                                         --standalone \
                                         --agree-tos \
-                                        --standalone-supported-challenges http-01 \
+                                        --preferred-challenges http-01 \
                                         -n \
                                         -d $DOMAIN \
                                         -m $EMAIL
